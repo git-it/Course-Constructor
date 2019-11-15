@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Course-Constructor</title>
+    <!-- leaflet for map in browser -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet-src.js" integrity="sha512-IkGU/uDhB9u9F8k+2OsA6XXoowIhOuQL1NTgNZHY1nkURnqEGlDZq3GsfmdJdKFe1k1zOc6YU2K7qY+hF9AodA==" crossorigin=""></script>
+
+    <!-- turf for spatial calculations -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@5/turf.min.js"></script>
+
+    <script src="https://momentjs.com/downloads/moment.js"></script>
+
+    <!--proj4 for projection and transformation -->
+    <script src="https://unpkg.com/proj4@2.4.4/dist/proj4-src.js"></script>
+    <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script>
+
+    <!-- omnivore and csv2geoJson for conversion of csv (and such) to GeoJson and leaflet compliant structures -->
+    <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.js"></script>
+    <script src="https://npmcdn.com/csv2geojson@latest/csv2geojson.js"></script>
+    <!-- for csv parsing  -->
+    <script src="https://unpkg.com/papaparse@latest/papaparse.min.js"></script>
+
+    <!-- Jquery for js/ file manip...-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+
+    <!-- visualize it -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css" />
+
+    <!-- Slider (Jquery UI) -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <link rel="stylesheet" href="https://jqueryui.com/resources/demos/style.css">
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+    <!--Alertify make prompts easy-->
+    
+<!-- JavaScript -->
+<script src="//cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/alertify.min.js"></script>
+
+<!-- CSS -->
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/css/alertify.min.css"/>
+<!-- Bootstrap theme -->
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/css/themes/bootstrap.min.css"/>
+<!-- Bootstrap theme -->
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/css/themes/bootstrap.rtl.min.css"/>
+
+  </head>
+
+<body>
+<form class="form-inline">
+	<div class="form-group">
+	  <label for="files">Upload a CSV formatted file:</label>
+	  <input type="file" id="files"  class="form-control" accept=".csv" required />
+  </div>
+	<div class="form-group">
+	 <button type="submit" id="submit-file" class="btn btn-primary">Upload File</button>
+	 </div>
+</form>
+currently expects CSV with columns user, lat, lon, time 
+<br> user is a delimiter identifier to differentiate between different tracks
+<br>Lat and lon are expected in WGS84 decimal degrees
+<br>(time can be in any date/time format)
+
+
+ 
+  <div id="map" style="height: 300px; width:40%;float: left;"></div>
+  <div id="sliders" style="margin-left: 45%; height: 300px; width:40%">
+      <p>
+        <label for="dist-amount">Distance between points:</label>
+        <input type="text" id="dist-amount" readonly style="border:0; color:#f6931f; font-weight:bold;">
+      </p>
+      <div id="dist-range"></div>
+      <p>
+        <label for="speed-amount">Speeds between points:</label>
+        <input type="text" id="speed-amount" readonly style="border:0; color:#f6931f; font-weight:bold;">
+      </p>
+      <div id="speed-range"></div>
+      <button onclick="filterTrack()">redraw tracks using selected filters</button> 
+    </div>
+
+  <div style="height: 710px; width:100%">
+
+    <div id="d3_speeds" style="height: 700px; width:49%;float: left;"></div>  <!--style="width:50%"-->
+   
+    <div id="d3_distances" style="margin-left: 50%; height: 700px; width:49%"></div> <!--style="width:50%"-->
+  </div>
+  <table id="dataTable_in" class="display" style="width:30%"></table>
+  
+  <script>
+    var raw_tracks = L.geoJSON(); //L.layerGroup();
+    var filtered_tracks = L.geoJSON();
+
+// L.marker([39.61, -105.02]).bindPopup('This is Littleton, CO.').addTo(cities),
+// L.marker([39.74, -104.99]).bindPopup('This is Denver, CO.').addTo(cities),
+// L.marker([39.73, -104.8]).bindPopup('This is Aurora, CO.').addTo(cities),
+// L.marker([39.77, -105.23]).bindPopup('This is Golden, CO.').addTo(cities);
+
+
+var mbAttr = 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+    '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+    'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+  mbUrl = 'https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+
+var grayscale   = L.tileLayer(mbUrl, {id: 'mapbox.light', attribution: mbAttr}),
+  streets  = L.tileLayer(mbUrl, {id: 'mapbox.streets',   attribution: mbAttr});
+
+var map = L.map('map', {
+  center: [9.73, -1.99],
+  zoom: 5,
+  layers: [grayscale, raw_tracks,filtered_tracks]
+});
+
+var baseLayers = {
+  "Grayscale": grayscale,
+  "Streets": streets
+};
+
+var overlays = {
+  "raw_tracks": raw_tracks,
+  "filtered_tracks":filtered_tracks
+};
+L.control.layers(baseLayers, overlays).addTo(map);
+///// end map setup ///
+
+$('#submit-file').on("click",function(e){
+  e.preventDefault();
+  
+  Papa.parse($('input[type=file]')[0].files[0], {
+    header:true,
+    config: {
+        delimiter: "auto",
+      },
+      before: function(file, inputElem) {
+        console.log("Parsing file...", file);
+      },
+      error: function(err, file){
+        //console.log("ERROR:", err, file);
+      },
+      complete: function(data){
+        //displayHTMLTable(data);
+        json_2_dataTable(data);
+        console.log("Done with all files");
+        csv_to_lineStrings(data, "user", "time", 
+              "lat",  "lon");
+        //add_data_to_map(Papa.unparse(data) );
+      }
+    });
+  
+});
+
+function json_2_dataTable(result){
+  var t_columns = Object.keys(result.data[0]).map(function(x){ return { title: x}; })
+  var rows = result.data.map(function(row){ 
+            return t_columns.map(function(col){
+                if(row.hasOwnProperty(col.title) &&
+                  row[col.title] != undefined){
+                      return row[col.title];
+                  }else{
+                    return "";
+                  }
+              }); 
+          });
+  $('#dataTable_in').DataTable( {
+        data: rows,
+        columns: t_columns
+    } );
+}
+
+/// parse CSV and show
+function displayHTMLTable(results){
+	var table = "<table class='table'>";
+	var data = results.data;
+   console.log(results);
+   
+	for(i=0;i<data.length;i++){
+		table+= "<tr>";
+		var row = data[i];
+		var cells = row.join(",").split(",");
+		 
+		for(j=0;j<cells.length;j++){
+			table+= "<td>";
+			table+= cells[j];
+			table+= "</th>";
+		}
+		table+= "</tr>";
+	}
+	table+= "</table>";
+	$("#parsed_csv_list").html(table);
+  add_data_to_map(results);
+}
+
+var organized_data = {};
+function csv_to_lineStrings(data_in, userColumn, timeColumn, 
+              latColumn,  lonColumn){
+  console.log(data_in);
+  var data = data_in.data;
+  // create lists for each user
+  for(var i=0; i<data.length; i+=1) {
+    var uuid = data[i][userColumn];
+    var lat = parseFloat(data[i][latColumn]);
+    var lon = parseFloat(data[i][lonColumn]);
+    var timestamp = moment(data[i][timeColumn]);
+    if(!organized_data.hasOwnProperty(uuid)){
+      organized_data[uuid] = [];
+    }
+    if(lon==NaN | lat==NaN){
+      console.log(uuid,lat,lon,timestamp);
+    }
+    if(lon!=NaN && lat!=NaN){
+      try {
+      organized_data[uuid].push( {'timestamp':timestamp,
+                        'coord': turf.point([lon, lat])});
+      } catch(err){
+        console.log("failed on row ", data[i]);
+      }
+    }
+  };
+  // now do something with our sorted data
+  var unique_uid = Object.keys(organized_data);
+  var user_2_speeds = {};
+  var user_2_dist = {};
+
+  // sort data by time
+  for(var i=0; i<unique_uid.length; i+=1) {
+    organized_data[unique_uid[i]].sort( compareTimeStamp );
+    user_2_speeds[unique_uid[i]] = [];
+    user_2_dist[unique_uid[i]] = [];
+    //
+    for(var j=1; j<organized_data[unique_uid[i]].length; j+=1){
+      var row0 = organized_data[unique_uid[i]][j-1];
+      var row1 = organized_data[unique_uid[i]][j];
+      var dist = turf.distance(row0.coord, row1.coord);
+      var time_delta=(row1.timestamp - row0.timestamp)/3600000;
+      user_2_speeds[unique_uid[i]].push( dist/time_delta );
+      user_2_dist[unique_uid[i]].push( dist );
+    }
+
+    var coords = organized_data[unique_uid[i]].map(function(row){ return row.coord;});
+    // add each line to map
+    if (coords.length>1){
+      var geoJson_csv = turf.lineString(coords.map(function(gJson){
+        return gJson.geometry.coordinates;
+      }));
+      //var customLayer = L.geoJSON( geoJson_csv );
+      //  customLayer.addTo(map);
+        //add data to raw_tracks
+        raw_tracks.addData(geoJson_csv);
+     }
+  }
+  // create graphs
+  console.log('user_2_speeds',user_2_speeds);
+  create_speed_violin_plot(user_2_speeds);
+  create_distance_violin_plot(user_2_dist);
+
+  console.log('organized_data');
+  console.log(organized_data);
+  create_basic_track_filters(organized_data, true);
+};
+
+function compareTimeStamp( a, b ) {
+  // change time to wtvr field has timestamp
+  if ( a.time < b.time ){
+    return -1;
+  }
+  if ( a.time > b.time ){
+    return 1;
+  }
+  return 0;
+}
+
+
+// calculate dist, speed, etc... for all point combinations
+var user_coords_summary = {};
+
+function create_distance_violin_plot(data_in) {
+  var users = Object.keys(data_in);
+  var data = [];
+  for(var i=0; i<users.length; i+=1) {
+      if(data_in[users[i]].length >0){
+        var trace = {
+            text: "sample length: 58",
+            hoveron: "points+kde",
+            meanline: { visible: true },
+            legendgroup: "Yes",
+            scalegroup: "Yes",
+            points: "all",
+            pointpos: -0.9,
+            box: { visible: true },
+            jitter: 0,
+            scalemode: "count",
+            marker: {
+                line: {width: 2, color: "#8dd3c7"},
+                symbol: "line-ns"
+            },
+            showlegend: false,
+            //side: "negative",
+            type: "violin",
+            name: "M",
+            span: [0],
+            line: { color: "#8dd3c7" },
+            y0: users[i],
+            x: data_in[users[i]],
+            orientation: "h"
+      };
+    data.push(trace);
+      }
+  }
+
+  var layout = {
+          hovermode: "closest",
+          width: '48%',
+          yaxis: {
+              showgrid: true
+          },
+          title: "distance distribution",
+          legend: {
+              tracegroupgap: 0
+          },
+          violingap: 0,
+          violingroupgap: 0,
+          violinmode: "overlay",
+          height: 700
+      }
+
+  Plotly.plot('d3_distances', data, layout);
+}
+
+function create_speed_violin_plot(data_in) {
+
+  console.log(data_in);
+  var users = Object.keys(data_in);
+  var data = [];
+  for(var i=0; i<users.length; i+=1) {
+    var trace = {
+            text: "sample length: 58",
+            hoveron: "points+kde",
+            meanline: { visible: true },
+            legendgroup: "Yes",
+            scalegroup: "Yes",
+            points: "all",
+            pointpos: -0.9,
+            box: { visible: true },
+            jitter: 0,
+            scalemode: "count",
+            marker: {
+                line: {width: 2, color: "#8dd3c7"},
+                symbol: "line-ns"
+            },
+            showlegend: false,
+            //side: "negative",
+            type: "violin",
+            name: "M",
+            span: [0],
+            line: { color: "#8dd3c7" },
+            y0:  users[i],
+            x: data_in[users[i]],
+            orientation: "h"
+      };
+      data.push(trace);
+  }
+  
+  var layout = {
+          hovermode: "closest",
+          width: '48%',
+          yaxis: {
+              showgrid: true
+          },
+          title: "speed distribution",
+          legend: {
+              tracegroupgap: 0
+          },
+          violingap: 0,
+          violingroupgap: 0,
+          violinmode: "overlay",
+          height: 700
+      }
+
+  Plotly.plot('d3_speeds', data, layout);
+}
+
+function filterTrack(){
+  filtered_tracks.clearLayers();
+  var min_dist_filter = $( "#dist-range" ).slider( "values", 0 );
+  var max_dist_filter = $( "#dist-range" ).slider( "values", 1 );
+  var min_speed_filter = $( "#speed-range" ).slider( "values", 0 );
+  var max_speed_filter = $( "#speed-range" ).slider( "values", 1 );
+  // loop through our point-2-point metrics and only keep the onse passing these filters
+  // now do something with our sorted data
+  var filtered_data = {}
+  var unique_uid = Object.keys(organized_data);
+  var user_2_speeds = {};
+  var user_2_dist = {};
+
+  // sort data by time
+  for(var i=0; i<unique_uid.length; i+=1) {
+    console.log('filtering points for user: '+unique_uid[i]);
+    if(unique_uid[i]==undefined){
+      continue;
+    }
+    organized_data[unique_uid[i]].sort( compareTimeStamp );
+    user_2_speeds[unique_uid[i]] = [];
+    user_2_dist[unique_uid[i]] = [];
+    // create new filtered entry for user
+    filtered_data[unique_uid[i]] = [];
+    var num_user_points = organized_data[unique_uid[i]].length;
+
+    var points_used = [];
+    // loop through points
+    for(var j=0; j<organized_data[unique_uid[i]].length;){
+      var row0 = organized_data[unique_uid[i]][j];
+
+      // add first point of segment to our coord out
+      if(points_used.indexOf(j)==-1){
+        filtered_data[unique_uid[i]].push(organized_data[unique_uid[i]][j]);
+        points_used.push(j);
+      }
+
+      // check if segment meets the user entered filter
+      var keep_searching = true;
+      var end_segment_index = j;
+      while(keep_searching){
+        end_segment_index+=1;
+        if( end_segment_index>=organized_data[unique_uid[i]].length){
+          keep_searching=false;
+          continue;
+        }
+        // get next row (data is already sorted by time)
+        var row1 = organized_data[unique_uid[i]][end_segment_index];
+        var dist = turf.distance(row0.coord, row1.coord);
+        var time_delta=(row1.timestamp - row0.timestamp)/3600000;
+        var kmh = dist/time_delta;
+        //console.log('comparing points ('+j+','+end_segment_index+' of '+num_user_points+'points) -kmh:'+kmh+' dist:'+dist+"  USER:"+unique_uid[i]);
+        if(dist>min_dist_filter && dist<max_dist_filter &&
+          kmh>min_speed_filter && kmh<max_speed_filter){
+          
+          // add first point of segment to our coord out
+          if(points_used.indexOf(end_segment_index)==-1){
+            filtered_data[unique_uid[i]].push(organized_data[unique_uid[i]][end_segment_index]);
+            points_used.push(end_segment_index);
+          }
+           user_2_speeds[unique_uid[i]].push( meters_per_hour );
+           user_2_dist[unique_uid[i]].push( dist );
+           keep_searching=false;
+        }else{
+          console.log("row removed - dist"+dist+" speed"+kmh);
+        }
+      }
+      j=end_segment_index;
+    }
+    //
+    console.log(unique_uid[i]+" had "+organized_data[unique_uid[i]].length+
+                      " rows; now has "+filtered_data[unique_uid[i]].length);
+    var coords = filtered_data[unique_uid[i]].map(function(row){ return row.coord;});
+    // add each line to map
+    if (coords.length>1){
+      var geoJson_csv = turf.lineString(coords.map(function(gJson){
+        return gJson.geometry.coordinates;
+      }));
+        filtered_tracks.addData(geoJson_csv);
+     }
+  }
+  // redraw map- ONLY using our new dataset
+}
+
+function create_basic_track_filters(data_in, updateCharts){
+  var users = Object.keys(data_in);
+  var max_speed = 0;
+  var max_dist = 0;
+  for(var userCntr=0; userCntr<users.length; userCntr+=1) {
+
+    var segment_attributes = {};
+    var speed_2_segments = {};
+    var distance_2_segments = {};
+
+    var coords = data_in[users[userCntr]];
+
+        /////////// coords [ {"timestamp":  ,  "coord":turf.point([long, lat])}]
+        for(var i=0; i<coords.length; i+=1) {
+            var point_i = coords[i].coord;
+            var time_i =  coords[i].timestamp;
+            for(var j=0; j<coords.length; j+=1) {    
+                if (i != j){
+                  var point_j = coords[j].coord;
+                  var time_j =  coords[j].timestamp;
+
+                    // calculate distance
+                    var dist = turf.distance(point_i,point_j);
+                    if(dist>max_dist){
+                      max_dist = dist;
+                    }
+                    var bearing = turf.bearing(point_i,point_j)
+                    var time_delta = moment(time_j) - moment(time_i);
+                    //calculate speed
+                    var speed = dist * ( time_delta / 3600000);
+                    if(speed>max_speed){
+                      max_speed = speed;
+                    }
+                    // save off info
+                    segment_attributes[i,j] = {'dist':dist, 'time_delta':time_delta, 'speed' : speed };
+
+                    // data for filtering
+                    if(!speed_2_segments.hasOwnProperty()){
+                        speed_2_segments[speed] = [];
+                    }if(!distance_2_segments.hasOwnProperty()){
+                        distance_2_segments[dist] = [];
+                    }
+                    speed_2_segments[speed].push([i,j]);
+                    distance_2_segments[dist].push([i,j]);
+                }
+            };
+        };
+        user_coords_summary[users[userCntr]] = { 'attr':segment_attributes,
+                'speeds': speed_2_segments, 'dist':distance_2_segments };
+      }
+
+      // update range sliderts
+      console.log("speed",max_speed,"dist", max_dist);
+      $( "#speed-range" ).slider({
+        range: true,
+        min: 0,
+        max: max_speed,
+        values: [ 0, max_speed ],
+        slide: function( event, ui ) {
+          $( "#speed-amount" ).val(  ui.values[ 0 ] + " - " + ui.values[ 1 ]+"  KMH" );
+        }
+      });
+      $( "#speed-amount" ).val( $( "#speed-range" ).slider( "values", 0 ) +
+        " - " + $( "#speed-range" ).slider( "values", 1 )+"  KMH" );
+
+    $( "#dist-range" ).slider({
+        range: true,
+        min: 0,
+        max: max_dist,
+        values: [ 0, max_dist ],
+        slide: function( event, ui ) {
+          $( "#dist-amount" ).val(  ui.values[ 0 ] + " - " + ui.values[ 1 ]+"Km" );
+        }
+      });
+      $( "#dist-amount" ).val(  $( "#dist-range" ).slider( "values", 0 ) +
+        " - " + $( "#dist-range" ).slider( "values", 1 )+"Km" );
+
+    }
+
+        // nodes to create
+        /*
+        *   load url/csv/excel/shapefile/wkt/geojson
+        *   add geospatial context
+        *   spatial select operations (clip, cut, union, join, intersection...)
+        *   all spatial calculations in turf
+        *   brain.js / tensorflow.js
+        *   NLP  - naturalNode  
+        *   plotting - stdlib   (or of course d3)
+        *
+        */
+  </script>
+
+</html>
