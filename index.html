@@ -2,7 +2,10 @@
 <html>
 
 <head>
-<title>Course-Constructor</title>
+      <!-- Required meta tags -->
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
     <!-- leaflet for map in browser -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet-src.js" integrity="sha512-IkGU/uDhB9u9F8k+2OsA6XXoowIhOuQL1NTgNZHY1nkURnqEGlDZq3GsfmdJdKFe1k1zOc6YU2K7qY+hF9AodA==" crossorigin=""></script>
@@ -22,8 +25,17 @@
     <!-- for csv parsing  -->
     <script src="https://unpkg.com/papaparse@latest/papaparse.min.js"></script>
 
-    <!-- Jquery for js/ file manip...-->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <!-- Jquery for js/ file manip... prev used 2.1.3-->
+    <script
+			  src="https://code.jquery.com/jquery-3.4.1.min.js"
+			  integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
+			  crossorigin="anonymous"></script>
+
+      <!-- bootstrap so we can do simple page styling -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  
 
     <!-- visualize it -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -39,7 +51,7 @@
     <!--Alertify make prompts easy-->
     
 <!-- JavaScript -->
-<script src="//cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/alertify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/alertify.min.js"></script>
 
 <!-- CSS -->
 <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/css/alertify.min.css"/>
@@ -51,46 +63,130 @@
   </head>
 
 <body>
-<form class="form-inline">
-	<div class="form-group">
-	  <label for="files">Upload a CSV formatted file:</label>
-	  <input type="file" id="files"  class="form-control" accept=".csv" required />
-  </div>
-	<div class="form-group">
-	 <button type="submit" id="submit-file" class="btn btn-primary">Upload File</button>
-	 </div>
-</form>
-currently expects CSV with columns user, lat, lon, time 
-<br> user is a delimiter identifier to differentiate between different tracks
-<br>Lat and lon are expected in WGS84 decimal degrees
-<br>(time can be in any date/time format)
+  <div class="container">
+    <div class="row">
+      <form class="form-inline">
+        <div class="form-group">
+          <label for="files">Upload a CSV formatted file:</label>
+          <input type="file" id="files"  class="form-control" accept=".csv" required />
+        </div>
+        <div class="form-group">
+        <button type="submit" id="submit-file" class="btn btn-primary">Upload File</button>
+        </div>
+      </form>
+    </div><!-- end input DIV -->
 
+    currently expects CSV with columns user, lat, lon, time 
+    <br> user is a delimiter identifier to differentiate between different tracks
+    <br>Lat and lon are expected in WGS84 decimal degrees
+    <br>(time can be in any date/time format)
 
- 
-  <div id="map" style="height: 300px; width:40%;float: left;"></div>
-  <div id="sliders" style="margin-left: 45%; height: 300px; width:40%">
-      <p>
-        <label for="dist-amount">Distance between points:</label>
-        <input type="text" id="dist-amount" readonly style="border:0; color:#f6931f; font-weight:bold;">
-      </p>
-      <div id="dist-range"></div>
-      <p>
-        <label for="speed-amount">Speeds between points:</label>
-        <input type="text" id="speed-amount" readonly style="border:0; color:#f6931f; font-weight:bold;">
-      </p>
-      <div id="speed-range"></div>
-      <button onclick="filterTrack()">redraw tracks using selected filters</button> 
+    <!--map and filters float: left; margin-left: 45%;   -->
+    <div class="row">
+        <div class="col-sm">
+          <div id="map" style="height: 300px;"></div>
+        </div>
+        <div class="col-sm">
+          <div id="sliders" style="height: 300px;">
+            <p>
+                <label for="dist-amount">Distance between points (km):</label>
+                <input type="text" id="dist-amount" style="border:0; color:#f6931f; font-weight:bold;">
+            </p>
+              <div id="dist-range"></div>
+            <p>
+                <label for="speed-amount">Speeds between points (kmh):</label>
+                <input type="text" id="speed-amount" style="border:0; color:#f6931f; font-weight:bold;">
+            </p>
+              <div id="speed-range"></div>
+              <button onclick="filterTrack()">redraw tracks using selected filters</button> 
+          </div>
+        </div>
     </div>
 
-  <div style="height: 710px; width:100%">
+    <div class="row">
 
-    <div id="d3_speeds" style="height: 700px; width:49%;float: left;"></div>  <!--style="width:50%"-->
-   
-    <div id="d3_distances" style="margin-left: 50%; height: 700px; width:49%"></div> <!--style="width:50%"-->
+
+        <!-- Nav tabs -->
+        <div class="card text-center">
+            <div class="card-header">
+              <ul class="nav nav-tabs">
+                <li class="nav-item">
+                  <a class="nav-link active" data-toggle="tab" href="#speed_distribution_violins">Speed Distributions</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#dist_distribution_violins">Distance Distributions</a>
+                  </li>
+                <li class="nav-item">
+                  <a class="nav-link" data-toggle="tab" href="#speed_over_time">Speeds over time</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#computed_table">Computed data table</a>
+                  </li>
+
+                <li class="nav-item">
+                  <a class="nav-link" data-toggle="tab" href="#data_table">Raw data table</a>
+                </li>
+              </ul>
+            </div>
+
+        <!-- Tab panes -->
+        <div class="card-body"></div>
+            <div class="tab-content">
+
+              <div class="tab-pane container active" id="speed_distribution_violins">
+                  <div class="col-sm" >
+                      <div id="d3_speeds" ></div>  <!--width:49%;float: left;-->
+                  </div>
+              </div>
+              <div class="tab-pane container fade" id="dist_distribution_violins">
+                  <div class="col-sm" >
+                      <div id="d3_distances" ></div> <!--margin-left: 50%; height: 600px; width:49%-->
+                  </div>
+              </div>
+              
+              <div class="tab-pane container fade" id="speed_over_time">
+                ...
+                  <div class="col-sm" >
+                      <div id="d3_speed_v_time" ></div> <!--margin-left: 50%; height: 600px; width:49%-->
+                  </div>
+              </div>
+              <div class="tab-pane container fade" id="computed_table">
+                  <table id="computed_table_in" class="display"></table>
+              </div>
+              <div class="tab-pane container fade" id="data_table">
+                  <table id="dataTable_in" class="display" style="width:30%"></table>
+              </div>
+              
+            </div>
+      </div>
+    </div>
   </div>
-  <table id="dataTable_in" class="display" style="width:30%"></table>
-  
+
+<!-- 
+  the form to be viewed as dialog  
+https://stackoverflow.com/questions/31780423/alertify-prompt-allow-user-to-input-values-and-submit-form
+-->
+<form id="defineColumnsForm" style="display:none;">
+    <fieldset>
+        <label> 'user' column is a delimiter identifier to differentiate between different tracks </label>
+        <input type="text" value="user" id="user_column"/> 
+
+        <label> 'time' column when user was at each point </label>
+        <input type="text" value="time" id="time_column"/> 
+
+        <label> Latitude column  (WGS84 in decimal degrees) </label>
+        <input type="text" value="lat" id="lat_column"/> 
+
+        <label> Longitude column  (WGS84 in decimal degrees) </label>
+        <input type="text" value="lon" id="lon_column /> 
+
+        <input type="submit" value="load data"/>
+    </fieldset>
+</form>
+
+
   <script>
+    
     var raw_tracks = L.geoJSON(); //L.layerGroup();
     var filtered_tracks = L.geoJSON();
 
@@ -126,6 +222,11 @@ var overlays = {
 L.control.layers(baseLayers, overlays).addTo(map);
 ///// end map setup ///
 
+var lat_column = "lat";
+var lon_column = "lon";
+var time_column = "time";
+var user_column = "user";
+
 $('#submit-file').on("click",function(e){
   e.preventDefault();
   
@@ -142,7 +243,8 @@ $('#submit-file').on("click",function(e){
       },
       complete: function(data){
         //displayHTMLTable(data);
-        json_2_dataTable(data);
+        
+        json_2_dataTable(data, 'dataTable_in');
         console.log("Done with all files");
         csv_to_lineStrings(data, "user", "time", 
               "lat",  "lon");
@@ -152,7 +254,7 @@ $('#submit-file').on("click",function(e){
   
 });
 
-function json_2_dataTable(result){
+function json_2_dataTable(result, div_id){
   var t_columns = Object.keys(result.data[0]).map(function(x){ return { title: x}; })
   var rows = result.data.map(function(row){ 
             return t_columns.map(function(col){
@@ -164,7 +266,7 @@ function json_2_dataTable(result){
                   }
               }); 
           });
-  $('#dataTable_in').DataTable( {
+  $('#'+div_id).DataTable( {
         data: rows,
         columns: t_columns
     } );
@@ -198,6 +300,8 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
               latColumn,  lonColumn){
   console.log(data_in);
   var data = data_in.data;
+  //var computed_rows = {data: ['start_point', 'end_point','dist(meters)','time_delta(hours)','meter_per_hour','bearing']};
+  var computed_rows = {data: []};
   // create lists for each user
   for(var i=0; i<data.length; i+=1) {
     var uuid = data[i][userColumn];
@@ -223,6 +327,7 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
   var unique_uid = Object.keys(organized_data);
   var user_2_speeds = {};
   var user_2_dist = {};
+  var user_2_timeSeries = {};
 
   // sort data by time
   for(var i=0; i<unique_uid.length; i+=1) {
@@ -234,9 +339,15 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
       var row0 = organized_data[unique_uid[i]][j-1];
       var row1 = organized_data[unique_uid[i]][j];
       var dist = turf.distance(row0.coord, row1.coord);
+      var bearing = turf.bearing(row0.coord, row1.coord);
       var time_delta=(row1.timestamp - row0.timestamp)/3600000;
-      user_2_speeds[unique_uid[i]].push( dist/time_delta );
+      var meter_per_hour = dist/time_delta 
+      user_2_speeds[unique_uid[i]].push( meter_per_hour );
       user_2_dist[unique_uid[i]].push( dist );
+      var t_row = {"user":unique_uid[i], "start_point":row0.coord, "end_point":row1.coord, "dist_meter":dist, "time_Delta(hour)":time_delta,
+                "meter_per_hour":meter_per_hour, "bearing":bearing};
+      //var t_row = [row0.coord, row1.coord,dist,time_delta,meter_per_hour,bearing];
+      computed_rows['data'].push(t_row);
     }
 
     var coords = organized_data[unique_uid[i]].map(function(row){ return row.coord;});
@@ -259,6 +370,10 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
   console.log('organized_data');
   console.log(organized_data);
   create_basic_track_filters(organized_data, true);
+
+  // create computed data table
+  json_2_dataTable(computed_rows, 'computed_table_in');
+
 };
 
 function compareTimeStamp( a, b ) {
@@ -382,6 +497,29 @@ function create_speed_violin_plot(data_in) {
   Plotly.plot('d3_speeds', data, layout);
 }
 
+function create_d3_speed_v_time(data_in){
+  var users = Object.keys(data_in);
+  var data = [];
+  for(var i=0; i<users.length; i+=1) {
+    var user_id = users[i];
+    // array of 
+    
+    var trace = { type: "scatter",
+                mode: "lines",
+                name: user_id,
+                x: unpack(rows, 'Date'),
+                y: unpack(rows, 'AAPL.Low'),
+                line: {color: '#7F7F7F'}
+              }
+      data.push(trace);
+  }
+  
+  var layout = {
+    title: 'Time Series',
+  };
+
+  Plotly.plot('d3_speed_v_time', data, layout);
+}
 function filterTrack(){
   filtered_tracks.clearLayers();
   var min_dist_filter = $( "#dist-range" ).slider( "values", 0 );
@@ -442,11 +580,11 @@ function filterTrack(){
             filtered_data[unique_uid[i]].push(organized_data[unique_uid[i]][end_segment_index]);
             points_used.push(end_segment_index);
           }
-           user_2_speeds[unique_uid[i]].push( meters_per_hour );
+           user_2_speeds[unique_uid[i]].push( kmh );
            user_2_dist[unique_uid[i]].push( dist );
            keep_searching=false;
         }else{
-          console.log("row removed - dist"+dist+" speed"+kmh);
+          //console.log("row removed - dist"+dist+" speed"+kmh);
         }
       }
       j=end_segment_index;
@@ -525,11 +663,16 @@ function create_basic_track_filters(data_in, updateCharts){
         max: max_speed,
         values: [ 0, max_speed ],
         slide: function( event, ui ) {
-          $( "#speed-amount" ).val(  ui.values[ 0 ] + " - " + ui.values[ 1 ]+"  KMH" );
+          $( "#speed-amount" ).val(  ui.values[ 0 ] + " - " + ui.values[ 1 ] );
         }
       });
       $( "#speed-amount" ).val( $( "#speed-range" ).slider( "values", 0 ) +
-        " - " + $( "#speed-range" ).slider( "values", 1 )+"  KMH" );
+        " - " + $( "#speed-range" ).slider( "values", 1 ) );
+      $( "#speed-amount").change(function(){
+        var new_vals = $( "#speed-amount" ).val().split(" - ");
+        $( "#speed-range" ).slider( "values", 0, new_vals[0] );
+        $( "#speed-range" ).slider( "values", 1, new_vals[1] );
+      }); 
 
     $( "#dist-range" ).slider({
         range: true,
@@ -537,15 +680,20 @@ function create_basic_track_filters(data_in, updateCharts){
         max: max_dist,
         values: [ 0, max_dist ],
         slide: function( event, ui ) {
-          $( "#dist-amount" ).val(  ui.values[ 0 ] + " - " + ui.values[ 1 ]+"Km" );
+          $( "#dist-amount" ).val(  ui.values[ 0 ] + " - " + ui.values[ 1 ] );
         }
       });
       $( "#dist-amount" ).val(  $( "#dist-range" ).slider( "values", 0 ) +
-        " - " + $( "#dist-range" ).slider( "values", 1 )+"Km" );
+        " - " + $( "#dist-range" ).slider( "values", 1 ) );
+      $( "#dist-amount").change(function(){
+        var new_vals = $( "#dist-amount" ).val().split(" - ");
+        $( "#dist-range" ).slider( "values", 0, new_vals[0] );
+        $( "#dist-range" ).slider( "values", 1, new_vals[1] );
+      }); 
 
     }
-
-        // nodes to create
+       
+    // nodes to create
         /*
         *   load url/csv/excel/shapefile/wkt/geojson
         *   add geospatial context
