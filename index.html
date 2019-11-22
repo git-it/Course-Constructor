@@ -334,6 +334,7 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
     organized_data[unique_uid[i]].sort( compareTimeStamp );
     user_2_speeds[unique_uid[i]] = [];
     user_2_dist[unique_uid[i]] = [];
+    user_2_timeSeries[unique_uid[i]] = [];
     //
     for(var j=1; j<organized_data[unique_uid[i]].length; j+=1){
       var row0 = organized_data[unique_uid[i]][j-1];
@@ -344,10 +345,12 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
       var meter_per_hour = dist/time_delta 
       user_2_speeds[unique_uid[i]].push( meter_per_hour );
       user_2_dist[unique_uid[i]].push( dist );
-      var t_row = {"user":unique_uid[i], "start_point":row0.coord, "end_point":row1.coord, "dist_meter":dist, "time_Delta(hour)":time_delta,
-                "meter_per_hour":meter_per_hour, "bearing":bearing};
+      var t_row = {"user":unique_uid[i], "start_point":row0.coord, "end_point":row1.coord, "dist_meter":dist,
+               "start_time":row0.timestamp,"time_Delta(hour)":time_delta,
+               "meter_per_hour":meter_per_hour, "bearing":bearing};
       //var t_row = [row0.coord, row1.coord,dist,time_delta,meter_per_hour,bearing];
       computed_rows['data'].push(t_row);
+      user_2_timeSeries[unique_uid[i]].push(t_row);
     }
 
     var coords = organized_data[unique_uid[i]].map(function(row){ return row.coord;});
@@ -373,7 +376,8 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
 
   // create computed data table
   json_2_dataTable(computed_rows, 'computed_table_in');
-
+  // create basic temporal graph
+  create_d3_speed_v_time(user_2_timeSeries, "start_time", "meter_per_hour");
 };
 
 function compareTimeStamp( a, b ) {
@@ -497,18 +501,28 @@ function create_speed_violin_plot(data_in) {
   Plotly.plot('d3_speeds', data, layout);
 }
 
-function create_d3_speed_v_time(data_in){
+function create_d3_speed_v_time(data_in, date_column, values_column){
   var users = Object.keys(data_in);
+  console.log("create_d3_speed_v_time",data_in)
   var data = [];
   for(var i=0; i<users.length; i+=1) {
     var user_id = users[i];
     // array of 
-    
+    var date_vector = []
+    var values_vector = []
+    var users_data = data_in[users[i]];
+    for(var b=0; b<users_data.length; b+=1) {
+      var date_string = users_data[b][date_column].toISOString();
+      var val = users_data[b][values_column];
+      date_vector.push( date_string );
+      values_vector.push( val );
+    }
+    console.log(date_column,date_vector)
     var trace = { type: "scatter",
                 mode: "lines",
                 name: user_id,
-                x: unpack(rows, 'Date'),
-                y: unpack(rows, 'AAPL.Low'),
+                x: date_vector,
+                y: values_vector,
                 line: {color: '#7F7F7F'}
               }
       data.push(trace);
@@ -692,18 +706,6 @@ function create_basic_track_filters(data_in, updateCharts){
       }); 
 
     }
-       
-    // nodes to create
-        /*
-        *   load url/csv/excel/shapefile/wkt/geojson
-        *   add geospatial context
-        *   spatial select operations (clip, cut, union, join, intersection...)
-        *   all spatial calculations in turf
-        *   brain.js / tensorflow.js
-        *   NLP  - naturalNode  
-        *   plotting - stdlib   (or of course d3)
-        *
-        */
   </script>
 
 </html>
