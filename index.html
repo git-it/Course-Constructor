@@ -356,9 +356,9 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
     var coords = organized_data[unique_uid[i]].map(function(row){ return row.coord;});
     // add each line to map
     if (coords.length>1){
-      var geoJson_csv = turf.lineString(coords.map(function(gJson){
+      var geoJson_csv = turf.bezierSpline(turf.lineString(coords.map(function(gJson){
         return gJson.geometry.coordinates;
-      }));
+      })) );
       //var customLayer = L.geoJSON( geoJson_csv );
       //  customLayer.addTo(map);
         //add data to raw_tracks
@@ -534,6 +534,7 @@ function create_d3_speed_v_time(data_in, date_column, values_column){
 
   Plotly.plot('d3_speed_v_time', data, layout);
 }
+
 function filterTrack(){
   filtered_tracks.clearLayers();
   var min_dist_filter = $( "#dist-range" ).slider( "values", 0 );
@@ -706,6 +707,7 @@ function create_basic_track_filters(data_in, updateCharts){
       }); 
 
     }
+       
   </script>
 
 </html>
