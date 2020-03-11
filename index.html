@@ -10,7 +10,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet-src.js" integrity="sha512-IkGU/uDhB9u9F8k+2OsA6XXoowIhOuQL1NTgNZHY1nkURnqEGlDZq3GsfmdJdKFe1k1zOc6YU2K7qY+hF9AodA==" crossorigin=""></script>
 
-    <!-- turf for spatial calculations -->
+    <!-- maptalks for map with 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maptalks/dist/maptalks.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/maptalks/dist/maptalks.min.js"></script>
+-->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@5/turf.min.js"></script>
 
     <script src="https://momentjs.com/downloads/moment.js"></script>
@@ -76,10 +79,49 @@
       </form>
     </div><!-- end input DIV -->
 
-    currently expects CSV with columns user, lat, lon, time 
+    currently expects CSV with columns for <b><i>user, lat, lon, date-time</i></b> 
     <br> user is a delimiter identifier to differentiate between different tracks
     <br>Lat and lon are expected in WGS84 decimal degrees
     <br>(time can be in any date/time format)
+
+    <!-- popup modal for column inputs -->
+    <div class="modal fade" id="column_input_modal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLongTitle">Column inputs</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div>
+              <label for="user_column_chooser">Select 'User' column:</label>
+              <select id="user_column_chooser">
+              </select>
+            </div>
+            <div>
+              <label for="lat_column_chooser">Select 'Latitude' column:</label>
+              <select id="lat_column_chooser">
+              </select>
+            </div>
+            <div>
+              <label for="lon_column_chooser">Select 'Longitude' column:</label>
+              <select id="lon_column_chooser">
+              </select>
+            </div>
+            <div>
+              <label for="dateTime_column_chooser">Select 'DateTime' column:</label>
+              <select id="dateTime_column_chooser">
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary"  onclick="complete_csv_processing()">complete_csv_processing</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!--map and filters float: left; margin-left: 45%;   -->
     <div class="row">
@@ -221,11 +263,12 @@ var overlays = {
 };
 L.control.layers(baseLayers, overlays).addTo(map);
 ///// end map setup ///
-
+var alt_column = "alt";
 var lat_column = "lat";
 var lon_column = "lon";
 var time_column = "time";
 var user_column = "user";
+var papa_parsed;
 
 $('#submit-file').on("click",function(e){
   e.preventDefault();
@@ -233,26 +276,54 @@ $('#submit-file').on("click",function(e){
   Papa.parse($('input[type=file]')[0].files[0], {
     header:true,
     config: {
-        delimiter: "auto",
+        delimiter : "auto",
+        worker : true,
+        dynamicTyping:true,
+        header:true,
       },
-      before: function(file, inputElem) {
+    before: function(file, inputElem) {
         console.log("Parsing file...", file);
-      },
-      error: function(err, file){
-        //console.log("ERROR:", err, file);
-      },
-      complete: function(data){
-        //displayHTMLTable(data);
-        
-        json_2_dataTable(data, 'dataTable_in');
-        console.log("Done with all files");
-        csv_to_lineStrings(data, "user", "time", 
-              "lat",  "lon");
-        //add_data_to_map(Papa.unparse(data) );
+        console.log("inputElem", inputElem);
+    },
+    error: function(err, file){
+        console.log("ERROR:", err, file);
+    },
+    complete: function(data){
+        papa_parsed = data;
+        //parser.pause(); // pause the parser
+        var columns = Object.keys(data.data[0]).map(function(x){ return x; })
+        console.log('columns', columns);
+        // update column choosers
+        set_dropdown('user_column_chooser', columns);
+        set_dropdown('lat_column_chooser', columns);
+        set_dropdown('lon_column_chooser', columns);
+        set_dropdown('dateTime_column_chooser', columns);
+        $('#column_input_modal').modal('show');
       }
     });
-  
 });
+
+function set_dropdown(element_id, newOptions){
+  console.log('value', newOptions);
+  var $el = $("#"+element_id);
+  $el.empty(); // remove old options
+  newOptions.forEach(function(value) {
+    $el.append($("<option></option>")
+      .attr("value", value).text(value));
+  });
+}
+
+function complete_csv_processing(){
+    //  //displayHTMLTable(data);
+    json_2_dataTable(papa_parsed, 'dataTable_in');
+    lat_column = $("#lat_column_chooser").val();
+    lon_column = $("#lon_column_chooser").val();
+    time_column = $("#dateTime_column_chooser").val();
+    user_column = $("#user_column_chooser").val();
+    csv_to_lineStrings(papa_parsed, "user", "time",  lat_column,  lon_column); //user, time, lat, lon...
+    // //add_data_to_map(Papa.unparse(data) );
+    $('#column_input_modal').modal('hide');
+}
 
 function json_2_dataTable(result, div_id){
   var t_columns = Object.keys(result.data[0]).map(function(x){ return { title: x}; })
@@ -298,7 +369,7 @@ function displayHTMLTable(results){
 var organized_data = {};
 function csv_to_lineStrings(data_in, userColumn, timeColumn, 
               latColumn,  lonColumn){
-  console.log(data_in);
+  //console.log(data_in);
   var data = data_in.data;
   //var computed_rows = {data: ['start_point', 'end_point','dist(meters)','time_delta(hours)','meter_per_hour','bearing']};
   var computed_rows = {data: []};
@@ -315,8 +386,9 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
       console.log(uuid,lat,lon,timestamp);
     }
     if(lon!=NaN && lat!=NaN){
+      
       try {
-      organized_data[uuid].push( {'timestamp':timestamp,
+        organized_data[uuid].push( {'timestamp':timestamp,
                         'coord': turf.point([lon, lat])});
       } catch(err){
         console.log("failed on row ", data[i]);
@@ -345,7 +417,8 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
       var meter_per_hour = dist/time_delta 
       user_2_speeds[unique_uid[i]].push( meter_per_hour );
       user_2_dist[unique_uid[i]].push( dist );
-      var t_row = {"user":unique_uid[i], "start_point":row0.coord, "end_point":row1.coord, "dist_meter":dist,
+      var t_row = {"user":unique_uid[i], "start_point":row0.coord.geometry.coordinates, 
+               "end_point":row1.coord.geometry.coordinates, "dist_meter":dist,
                "start_time":row0.timestamp,"time_Delta(hour)":time_delta,
                "meter_per_hour":meter_per_hour, "bearing":bearing};
       //var t_row = [row0.coord, row1.coord,dist,time_delta,meter_per_hour,bearing];
@@ -450,7 +523,7 @@ function create_distance_violin_plot(data_in) {
 
 function create_speed_violin_plot(data_in) {
 
-  console.log(data_in);
+  //console.log(data_in);
   var users = Object.keys(data_in);
   var data = [];
   for(var i=0; i<users.length; i+=1) {
@@ -503,7 +576,7 @@ function create_speed_violin_plot(data_in) {
 
 function create_d3_speed_v_time(data_in, date_column, values_column){
   var users = Object.keys(data_in);
-  console.log("create_d3_speed_v_time",data_in)
+  //console.log("create_d3_speed_v_time",data_in)
   var data = [];
   for(var i=0; i<users.length; i+=1) {
     var user_id = users[i];
