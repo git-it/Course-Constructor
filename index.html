@@ -250,7 +250,7 @@ var baseLayers = {
 };
 
 var overlays = {
-  "raw_tracks": raw_tracks,
+  "playable_tracks": raw_tracks,
   "filtered_tracks":filtered_tracks,
   "summary_tracks": summary_tracks
 };
@@ -297,6 +297,14 @@ $('#download_computed_csv').click(function(){
 
 function loadCsv(){
   var columns = null; 
+  // reset everything
+  raw_tracks.clearLayers();
+  filtered_tracks.clearLayers();
+  summary_tracks.clearLayers();
+  organized_data = {};
+  crossData = null;
+  papa_parsed = null;
+
   $('#column_input_modal').modal('show');
   papa_parsed = {'data':[]};
   Papa.parse($('input[type=file]')[0].files[0], {
@@ -600,10 +608,6 @@ function compareTimeStamp( a, b ) {
   }
   return 0;
 }
-
-
-// calculate dist, speed, etc... for all point combinations
-var user_coords_summary = {};
 
 //TODO FIXME update to geojson
 function filterTrack( data, filters){
