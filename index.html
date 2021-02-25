@@ -30,7 +30,7 @@
     <!-- omnivore and csv2geoJson for conversion of csv (and such) to GeoJson and leaflet compliant structures -->
     <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.js"></script>
     <script src="https://npmcdn.com/csv2geojson@latest/csv2geojson.js"></script>
-    
+
     <!-- for csv parsing  -->
     <script src="https://unpkg.com/papaparse@latest/papaparse.min.js"></script>
 
@@ -50,6 +50,8 @@
   
 
     <!-- visualize it -->
+    <script src="js/colorbrewer.js"></script>
+
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
           <!-- dataTable -->
     <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
@@ -57,11 +59,13 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css" />
 
     <!-- interactive -->
+    <script src="https://cdn.jsdelivr.net/npm/underscore@1.12.0/underscore-min.js"></script>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <script src="js/crossfilter.min.js"></script>
     <script src="https://unpkg.com/dc@4/dist/dc.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/dc@4/dist/style/dc.css">
 
+    <script src="js/viz.js"></script>
 
 
     <!-- Slider (Jquery UI) -->
@@ -69,21 +73,17 @@
     <link rel="stylesheet" href="https://jqueryui.com/resources/demos/style.css">
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 
-    <!--Alertify make prompts easy-->
-    
-<!-- JavaScript -->
-<script src="https://cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/alertify.min.js"></script>
-
-<!-- CSS -->
-<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/css/alertify.min.css"/>
-<!-- Bootstrap theme -->
-<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/css/themes/bootstrap.min.css"/>
-<!-- Bootstrap theme -->
-<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.12.0/build/css/themes/bootstrap.rtl.min.css"/>
-
   </head>
 
 <body>
+
+<!-- add frame -->
+
+<a href="#" onclick="dc.filterAll();dc.redrawAll();">
+  <i class="fa fa-refresh"></i>
+  Clear filters
+</a>
+
   <div class="container">
 
     <div class="row">
@@ -141,35 +141,33 @@
 
   
     <div class="row">
-        <div class="col-lg">
-          <div id="map" style="height: 450px;width:600px;"></div>
+        <div class="col-sm">
+          <div id="map" style="height: 450px;width:620px;"></div>
         </div>
 
         <!--map and filters float: left; margin-left: 45%;  style="height: 300px; -->
         <div class="col-sm">
-          <div id="distPlot">
-                <label for="dist-amount">Distance between points (km):</label>
-          </div>
-          <div id="speedPlot">
-                <label for="speed-amount">Speeds between points (kmh):</label>  
-          </div>
+          <div id="radius" class="col-xs-12"></div>
+          <div id="speed" class="col-xs-12"></div>
+          <div id="accel" class="col-xs-12"></div>
         </div>
         
     </div>  
+
+<!-- FIXME -->
+<div class="col-lg-6 col-sm-12">
+
+  <div id="user" class="col-xs-12"></div>
+
+  <div class="table table-striped" id="data-table">
+  </div>
+</div>
+
     <div class="row">
       <!-- Nav tabs -->
       <div class="card text-center">
         <div class="card-header">
           <ul class="nav nav-tabs">
-            <li class="nav-item">
-              <a class="nav-link active" data-toggle="tab" href="#speed_distribution_violins">Speed Distributions</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" data-toggle="tab" href="#dist_distribution_violins">Distance Distributions</a>
-              </li>
-            <li class="nav-item">
-              <a class="nav-link" data-toggle="tab" href="#speed_over_time">Speeds over time</a>
-            </li>
             <li class="nav-item">
                 <a class="nav-link" data-toggle="tab" href="#computed_table">Computed data table</a>
               </li>
@@ -184,23 +182,6 @@
     <div class="card-body"></div>
         <div class="tab-content">
 
-          <div class="tab-pane container active" id="speed_distribution_violins">
-              <div class="col-sm" >
-                  <div id="d3_speeds" ></div>  <!--width:49%;float: left;-->
-              </div>
-          </div>
-          <div class="tab-pane container fade" id="dist_distribution_violins">
-              <div class="col-sm" >
-                  <div id="d3_distances" ></div> <!--margin-left: 50%; height: 600px; width:49%-->
-              </div>
-          </div>
-          
-          <div class="tab-pane container fade" id="speed_over_time">
-            ...
-              <div class="col-sm" >
-                  <div id="d3_speed_v_time" ></div> <!--margin-left: 50%; height: 600px; width:49%-->
-              </div>
-          </div>
           <div class="tab-pane container fade" id="computed_table">
             <button class="download" id="download_computed_csv">Download CSV</button>
               <table id="computed_table_in" class="display"></table>
@@ -215,6 +196,7 @@
 
   <script>
     var {KalmanFilter} = kalmanFilter;
+
     const kFilter = new KalmanFilter({
       observation: {
         sensorDimension: 3, //three dimensional
@@ -229,7 +211,9 @@
     
     // var raw_tracks = L.geoJSON();
     var raw_tracks = new L.LayerGroup();
-    var filtered_tracks = L.geoJSON();
+    // var filtered_tracks = L.geoJSON();
+    var filtered_tracks = new L.FeatureGroup();
+    var summary_tracks = new L.FeatureGroup();
 
 // L.marker([39.61, -105.02]).bindPopup('This is Littleton, CO.').addTo(cities),
 // L.marker([39.74, -104.99]).bindPopup('This is Denver, CO.').addTo(cities),
@@ -267,7 +251,8 @@ var baseLayers = {
 
 var overlays = {
   "raw_tracks": raw_tracks,
-  "filtered_tracks":filtered_tracks
+  "filtered_tracks":filtered_tracks,
+  "summary_tracks": summary_tracks
 };
 L.control.layers(baseLayers, overlays).addTo(map);
 ///// end map setup ///
@@ -535,35 +520,75 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
   // create_d3_speed_v_time(user_2_timeSeries, "start_time", "meter_per_hour");
 
   //dc.js plots
+  console.log('createCrossFilters(computed_rows)',computed_rows);
+  processVizData(computed_rows.data);
   // createCrossFilters(computed_rows);
 };
 
-function createCrossFilters(computed_rows){
-  // https://github.com/plotly/plotly.js-crossfilter.js/blob/master/script.js
-  var crossData = crossfilter(computed_rows),
-      dist = crossData.dimension(function(d) { return d["dist_meter"]; }),
-      distD = dist.group(function(d) { return Math.floor(d / 10) * 10; }),
-      speed = crossData.dimension(function(d) { return d["meter_per_hour"]; }),
-      speedD = speed.group(function(d) { return Math.floor(d / 1000) * 1000; }),
-      user_temp = crossData.dimension(function(d) { return d["user"]; }),
-      userD = user_temp.group(function(d) { return d; });
+let crossData = null;
+// var circuitMap = dc.geoChoroplethChart("#circuit")
+//                    .height(575)
+//                    .width(700),
+var bcDriver = dc.barChart("#user")
+                   .height(200)
+                   .width(800),
+    bcSpeed = dc.lineChart("#speed")
+                   .height(150)
+                   .width(350)
+                   .renderArea(true),
+    bcAcc = dc.lineChart("#accel")
+                   .height(150)
+                   .width(350)
+                   .renderArea(true),
+    bcRad = dc.lineChart("#radius")
+                   .height(150)
+                   .width(350)
+                   .renderArea(true),
+    dataTable = dc.dataTable('#data-table')
+                  .on('renderlet', function (table) {
+                    // each time table is rendered remove nasty extra row dc.js insists on adding
+                    table.select('tr.dc-table-group').remove();
+                    // update map with breweries to match filtered data
+                    filtered_tracks.clearLayers()
+                    //
+                    let currentDim = allDim.top(Infinity)
+                    t_bearing= currentDim.map((x)=> {return x.bearing})
+                    t_speeds = currentDim.map((x)=> {return x.meter_per_hour})
+                    t_dist = currentDim.map((x)=> {return x.dist_meter})
 
-  const dayOfWeek = crossData.dimension(d => {
-    const day = d.start_time.getDay();
-    const name = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return `${day}.${name[day]}`;
-  });
-  const dayOfWeekGroup = dayOfWeek.group();
-  const dateDimension = crossData.dimension(d => d.start_time);
+                    filters = {'bearing':[_.min(t_bearing),_.max(t_bearing)],
+                              'meter_per_hour':[_.min(t_speeds),_.max(t_speeds)],
+                              'dist_meter':[_.min(t_dist),_.max(t_dist)],
+                            }
+                    console.log('filterTrack( currentDim, filters) :', currentDim, filters)
+                    filterTrack( currentDim, filters)
 
-  // var distLineChart   = new dc.LineChart("#distPlot"),
-  //   spendHistChart  = new dc.LineChart("#speedPlot"),
-  //   spenderRowChart = new dc.RowChart("#chart-row-spenders");
+                    //
+                    // let tempDim = _.groupBy(allDim.top(Infinity), 'user')
+                    // _.each(tempDim, function (d) {
+                    //   d.sort( compareTimeStamp );
+                    //   // now pass to calc and plot f(x)
+                    // });
+                    // map.addLayer(filtered_tracks);
+                    // map.fitBounds(filtered_tracks.getBounds());
+                  }),
 
-      //TODO
-      // add user dropdown
-      // create bearing change plot
-}
+    decformat = d3.format(".2f"),
+    ndx,
+    groups = {},
+    dimensions = {},
+    dataRanges = {
+      speed: [0, 0],
+      acc: [0, 0],
+      bank: [0, 0]
+    },
+    margins = {
+      top: 20,
+      right: 20,
+      bottom: 0,
+      left: 20
+    };
+
 
 function compareTimeStamp( a, b ) {
   // change time to wtvr field has timestamp
@@ -580,180 +605,40 @@ function compareTimeStamp( a, b ) {
 // calculate dist, speed, etc... for all point combinations
 var user_coords_summary = {};
 
-function create_distance_violin_plot(data_in) {
-  var users = Object.keys(data_in);
-  var data = [];
-  for(var i=0; i<users.length; i+=1) {
-      if(data_in[users[i]].length >0){
-        var trace = {
-            text: "sample length: 58",
-            hoveron: "points+kde",
-            meanline: { visible: true },
-            legendgroup: "Yes",
-            scalegroup: "Yes",
-            points: "all",
-            pointpos: -0.9,
-            box: { visible: true },
-            jitter: 0,
-            scalemode: "count",
-            marker: {
-                line: {width: 2, color: "#8dd3c7"},
-                symbol: "line-ns"
-            },
-            showlegend: false,
-            //side: "negative",
-            type: "violin",
-            name: "M",
-            span: [0],
-            line: { color: "#8dd3c7" },
-            y0: users[i],
-            x: data_in[users[i]],
-            orientation: "h"
-      };
-    data.push(trace);
-      }
-  }
-
-  var layout = {
-          hovermode: "closest",
-          width: '48%',
-          yaxis: {
-              showgrid: true
-          },
-          title: "distance distribution",
-          legend: {
-              tracegroupgap: 0
-          },
-          violingap: 0,
-          violingroupgap: 0,
-          violinmode: "overlay",
-          height: 700
-      }
-
-  Plotly.plot('d3_distances', data, layout);
-}
-
-function create_speed_violin_plot(data_in) {
-
-  //console.log(data_in);
-  var users = Object.keys(data_in);
-  var data = [];
-  for(var i=0; i<users.length; i+=1) {
-    var trace = {
-            text: "sample length: 58",
-            hoveron: "points+kde",
-            meanline: { visible: true },
-            legendgroup: "Yes",
-            scalegroup: "Yes",
-            points: "all",
-            pointpos: -0.9,
-            box: { visible: true },
-            jitter: 0,
-            scalemode: "count",
-            marker: {
-                line: {width: 2, color: "#8dd3c7"},
-                symbol: "line-ns"
-            },
-            showlegend: false,
-            //side: "negative",
-            type: "violin",
-            name: "M",
-            span: [0],
-            line: { color: "#8dd3c7" },
-            y0:  users[i],
-            x: data_in[users[i]],
-            orientation: "h"
-      };
-      data.push(trace);
-  }
-  
-  var layout = {
-          hovermode: "closest",
-          width: '48%',
-          yaxis: {
-              showgrid: true
-          },
-          title: "speed distribution",
-          legend: {
-              tracegroupgap: 0
-          },
-          violingap: 0,
-          violingroupgap: 0,
-          violinmode: "overlay",
-          height: 700
-      }
-
-  Plotly.plot('d3_speeds', data, layout);
-}
-
-function create_d3_speed_v_time(data_in, date_column, values_column){
-  var users = Object.keys(data_in);
-  //console.log("create_d3_speed_v_time",data_in)
-  var data = [];
-  for(var i=0; i<users.length; i+=1) {
-    var user_id = users[i];
-    // array of 
-    var date_vector = []
-    var values_vector = []
-    var users_data = data_in[users[i]];
-    for(var b=0; b<users_data.length; b+=1) {
-      var date_string = users_data[b][date_column].toISOString();
-      var val = users_data[b][values_column];
-      date_vector.push( date_string );
-      values_vector.push( val );
-    }
-    console.log(date_column,date_vector)
-    var trace = { type: "scatter",
-                mode: "lines",
-                name: user_id,
-                x: date_vector,
-                y: values_vector,
-                line: {color: '#7F7F7F'}
-              }
-      data.push(trace);
-  }
-  
-  var layout = {
-    title: 'Time Series',
-  };
-
-  Plotly.plot('d3_speed_v_time', data, layout);
-}
-
-function filterTrack(){
+//TODO FIXME update to geojson
+function filterTrack( data, filters){
+  // filters = {'bearing':[_.min(t_bearing),_.max(t_bearing)],
+  //                             'meter_per_hour':[_.min(t_speeds),_.max(t_speeds)],
+  //                             'dist_meter':[_.min(t_dist),_.max(t_dist)],
+  //                           }
   filtered_tracks.clearLayers();
-  var min_dist_filter = $( "#dist-range" ).slider( "values", 0 );
-  var max_dist_filter = $( "#dist-range" ).slider( "values", 1 );
-  var min_speed_filter = $( "#speed-range" ).slider( "values", 0 );
-  var max_speed_filter = $( "#speed-range" ).slider( "values", 1 );
+  
   // loop through our point-2-point metrics and only keep the onse passing these filters
   // now do something with our sorted data
+  var computed_rows = [];
   var filtered_data = {}
-  var unique_uid = Object.keys(organized_data);
-  var user_2_speeds = {};
-  var user_2_dist = {};
+
+  var allowed_users = Object.keys(_.groupBy(dimensions.user.top(Infinity), 'user'));
 
   // sort data by time
-  for(var i=0; i<unique_uid.length; i+=1) {
-    console.log('filtering points for user: '+unique_uid[i]);
-    if(unique_uid[i]==undefined){
-      continue;
-    }
-    organized_data[unique_uid[i]].sort( compareTimeStamp );
-    user_2_speeds[unique_uid[i]] = [];
-    user_2_dist[unique_uid[i]] = [];
+  // let dataByUser = _.groupBy(data, 'user')
+  _.each(organized_data,function(arr,user){
+    if(user==undefined){ return; }
+    if(allowed_users.indexOf(user)== -1){ return; }
+
+    arr.sort( compareTimeStamp );
     // create new filtered entry for user
-    filtered_data[unique_uid[i]] = [];
-    var num_user_points = organized_data[unique_uid[i]].length;
+    filtered_data[user] = [];
+    var num_user_points = arr.length;
 
     var points_used = [];
     // loop through points
-    for(var j=0; j<organized_data[unique_uid[i]].length;){
-      var row0 = organized_data[unique_uid[i]][j];
+    for(var j=0; j<num_user_points;){
+      var row0 = arr[j];
 
       // add first point of segment to our coord out
       if(points_used.indexOf(j)==-1){
-        filtered_data[unique_uid[i]].push(organized_data[unique_uid[i]][j]);
+        filtered_data[user].push(arr[j]);
         points_used.push(j);
       }
 
@@ -762,27 +647,41 @@ function filterTrack(){
       var end_segment_index = j;
       while(keep_searching){
         end_segment_index+=1;
-        if( end_segment_index>=organized_data[unique_uid[i]].length){
+        if( end_segment_index>=arr.length){
           keep_searching=false;
           continue;
         }
+        // console.log(row0);
         // get next row (data is already sorted by time)
-        var row1 = organized_data[unique_uid[i]][end_segment_index];
+        var row1 = arr[end_segment_index];
         var dist = turf.distance(row0.coord, row1.coord);
+        var bearing = turf.bearing(row0.coord, row1.coord);
         var time_delta=(row1.timestamp - row0.timestamp)/3600000;
-        var kmh = dist/time_delta;
-        //console.log('comparing points ('+j+','+end_segment_index+' of '+num_user_points+'points) -kmh:'+kmh+' dist:'+dist+"  USER:"+unique_uid[i]);
-        if(dist>min_dist_filter && dist<max_dist_filter &&
-          kmh>min_speed_filter && kmh<max_speed_filter){
-          
+        var meter_per_hour = dist/time_delta 
+        var kmh = dist/time_delta;  // get rid of this?
+        var t_row = {"user":user, 
+            "start_point":row0.coord.geometry.coordinates, 
+            "end_point":row1.coord.geometry.coordinates, 
+            "dist_meter":dist,
+            "start_time":row0.timestamp,"time_Delta(hour)":time_delta,
+            "meter_per_hour":meter_per_hour, "bearing":bearing};
+        //////////
+        
+        t = Object.keys(filters).map((k)=>{
+          let v = t_row[k];
+          if(filters[k][0]<=v && filters[k][1]>=v){
+            return true;
+          }else{ return false; }
+        }).filter( (x)=>{if (!x){return true} } );
+
+        if(t.length==0){
           // add first point of segment to our coord out
           if(points_used.indexOf(end_segment_index)==-1){
-            filtered_data[unique_uid[i]].push(organized_data[unique_uid[i]][end_segment_index]);
+            filtered_data[user].push(arr[end_segment_index]);
             points_used.push(end_segment_index);
           }
-           user_2_speeds[unique_uid[i]].push( kmh );
-           user_2_dist[unique_uid[i]].push( dist );
-           keep_searching=false;
+          computed_rows.push(t_row);
+          keep_searching=false;
         }else{
           //console.log("row removed - dist"+dist+" speed"+kmh);
         }
@@ -790,113 +689,41 @@ function filterTrack(){
       j=end_segment_index;
     }
     //
-    console.log(unique_uid[i]+" had "+organized_data[unique_uid[i]].length+
-                      " rows; now has "+filtered_data[unique_uid[i]].length);
-    var coords = filtered_data[unique_uid[i]].map(function(row){ return row.coord;});
+    // console.log(user+" had "+arr.length+
+    //                   " rows; now has "+filtered_data[user].length);
+    var coords = filtered_data[user].map(function(row){ return row.coord;});
     // add each line to map
     if (coords.length>1){
       var geoJson_csv = turf.lineString(coords.map(function(gJson){
         return gJson.geometry.coordinates;
       }));
-        filtered_tracks.addData(geoJson_csv);
+      // filtered_tracks.addData(geoJson_csv);  //replaced with styled geoJson below
+      ///////
+      // geoJson_csv['timeKey'] = "linestringTimestamps";
+      geoJson_csv['properties']['user'] = user;
+      var geojson = L.geoJson(geoJson_csv, {
+      // var geojson = L.timeDimension.layer.geoJson(geoJson_csv, {
+        style: {"color": stringToColour(user ) },
+        onEachFeature: function (feature, layer) {
+            layer.bindPopup(feature.properties.user);
+            }
+      });
+      geojson.addTo(filtered_tracks);
      }
-  }
-  // redraw map- ONLY using our new dataset
+  })
+
+  map.setMaxBounds(filtered_tracks.getBounds())
+  json_2_dataTable({'data':computed_rows}, 'computed_table_in');
+  //update charts ??to much overhead FIXME
+  // processVizData(computed_rows);
+  // dc.events.trigger(function () {
+  //   processVizData(computed_rows);
+  //   }, dc.constants.EVENT_DELAY);
+  ////////
+
 }
 
-function create_basic_track_filters(data_in, updateCharts){
-  var users = Object.keys(data_in);
-  var max_speed = 0;
-  var max_dist = 0;
-  for(var userCntr=0; userCntr<users.length; userCntr+=1) {
-
-    var segment_attributes = {};
-    var speed_2_segments = {};
-    var distance_2_segments = {};
-
-    var coords = data_in[users[userCntr]];
-
-        /////////// coords [ {"timestamp":  ,  "coord":turf.point([long, lat])}]
-        for(var i=0; i<coords.length; i+=1) {
-            var point_i = coords[i].coord;
-            var time_i =  coords[i].timestamp;
-            for(var j=0; j<coords.length; j+=1) {    
-                if (i != j){
-                  var point_j = coords[j].coord;
-                  var time_j =  coords[j].timestamp;
-
-                    // calculate distance
-                    var dist = turf.distance(point_i,point_j);
-                    if(dist>max_dist){
-                      max_dist = dist;
-                    }
-                    var bearing = turf.bearing(point_i,point_j)
-                    var time_delta = moment(time_j) - moment(time_i);
-                    //calculate speed
-                    var speed = dist * ( time_delta / 3600000);
-                    if(speed>max_speed){
-                      max_speed = speed;
-                    }
-                    // save off info
-                    segment_attributes[i,j] = {'dist':dist, 'time_delta':time_delta, 'speed' : speed };
-
-                    // data for filtering
-                    if(!speed_2_segments.hasOwnProperty()){
-                        speed_2_segments[speed] = [];
-                    }if(!distance_2_segments.hasOwnProperty()){
-                        distance_2_segments[dist] = [];
-                    }
-                    speed_2_segments[speed].push([i,j]);
-                    distance_2_segments[dist].push([i,j]);
-                }
-            };
-        };
-        user_coords_summary[users[userCntr]] = { 'attr':segment_attributes,
-                'speeds': speed_2_segments, 'dist':distance_2_segments };
-      }
-
-      // update range sliderts
-      console.log("speed",max_speed,"dist", max_dist);
-      $( "#speed-range" ).slider({
-        range: true,
-        min: 0,
-        max: max_speed,
-        values: [ 0, max_speed ],
-        slide: function( event, ui ) {
-          $( "#speed-amount" ).val(  ui.values[ 0 ] + " - " + ui.values[ 1 ] );
-        }
-      });
-      $( "#speed-amount" ).val( $( "#speed-range" ).slider( "values", 0 ) +
-        " - " + $( "#speed-range" ).slider( "values", 1 ) );
-      $( "#speed-amount").change(function(){
-        var new_vals = $( "#speed-amount" ).val().split(" - ");
-        $( "#speed-range" ).slider( "values", 0, new_vals[0] );
-        $( "#speed-range" ).slider( "values", 1, new_vals[1] );
-      }); 
-
-    $( "#dist-range" ).slider({
-        range: true,
-        min: 0,
-        max: max_dist,
-        values: [ 0, max_dist ],
-        slide: function( event, ui ) {
-          $( "#dist-amount" ).val(  ui.values[ 0 ] + " - " + ui.values[ 1 ] );
-        }
-      });
-      $( "#dist-amount" ).val(  $( "#dist-range" ).slider( "values", 0 ) +
-        " - " + $( "#dist-range" ).slider( "values", 1 ) );
-      $( "#dist-amount").change(function(){
-        var new_vals = $( "#dist-amount" ).val().split(" - ");
-        $( "#dist-range" ).slider( "values", 0, new_vals[0] );
-        $( "#dist-range" ).slider( "values", 1, new_vals[1] );
-      }); 
-
-    }
-       
-
-
-
-  function JSONToCSVConvertor(JSONData,fileName,ShowLabel) {
+function JSONToCSVConvertor(JSONData,fileName,ShowLabel) {
     var arrData = typeof JSONData != 'object' ? JSON.parse(JSONData) : JSONData;
     var CSV = Papa.unparse(arrData);
     
