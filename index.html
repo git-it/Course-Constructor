@@ -471,7 +471,7 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
             "end_point":row1.coord.geometry.coordinates, 
             "dist_km":dist,
             "start_time":row0.timestamp,"time_Delta(hour)":time_delta,
-            "meter_per_hour":meter_per_hour, "bearing":bearing};
+            "kmh":meter_per_hour, "bearing":bearing};
         //var t_row = [row0.coord, row1.coord,dist,time_delta,meter_per_hour,bearing];
         computed_rows['data'].push(t_row);
         timeSeries.push(row0.timestamp);
@@ -561,11 +561,11 @@ var bcDriver = dc.barChart("#user")
                     //
                     let currentDim = allDim.top(Infinity)
                     t_bearing= currentDim.map((x)=> {return x.bearing})
-                    t_speeds = currentDim.map((x)=> {return x.meter_per_hour})
+                    t_speeds = currentDim.map((x)=> {return x.kmh})
                     t_dist = currentDim.map((x)=> {return x.dist_km})
 
                     filters = {'bearing':[_.min(t_bearing),_.max(t_bearing)],
-                              'meter_per_hour':[_.min(t_speeds),_.max(t_speeds)],
+                              'kmh':[_.min(t_speeds),_.max(t_speeds)],
                               'dist_km':[_.min(t_dist),_.max(t_dist)],
                             }
                     console.log('filterTrack( currentDim, filters) :', currentDim, filters)
@@ -668,7 +668,7 @@ function filterTrack( data, filters){
             "end_point":row1.coord.geometry.coordinates, 
             "dist_km":dist,
             "start_time":row0.timestamp,"time_Delta(hour)":time_delta,
-            "meter_per_hour":meter_per_hour, "bearing":bearing};
+            "kmh":meter_per_hour, "bearing":bearing};
         //////////
         
         t = Object.keys(filters).map((k)=>{

@@ -59,9 +59,9 @@ const processVizData = (data) => {
         p.count       += 1;
         p.t            = addWeightedMean(p.t, v.t, p.count);
         p.dist         = addWeightedMean(p.dist, v.dist, p.count);
-        p.meter_per_hour        = addWeightedMean(p.meter_per_hour, v.meter_per_hour, p.count);
-        p.quad_speed  += Math.pow(v.meter_per_hour, 2);
-        p.speed_std    = (p.count > 1 ? Math.sqrt(Math.pow(p.meter_per_hour, 2) - (p.quad_speed / p.count)) : 0);
+        p.kmh        = addWeightedMean(p.kmh, v.kmh, p.count);
+        p.quad_speed  += Math.pow(v.kmh, 2);
+        p.speed_std    = (p.count > 1 ? Math.sqrt(Math.pow(p.kmh, 2) - (p.quad_speed / p.count)) : 0);
         p.dist_km          = addWeightedMean(p.dist_km, v.dist_km, p.count);
         p.bearing         = addWeightedMean(p.bearing, v.bearing, p.count);
         p.abs_bank_diff    = addWeightedMean(p.abs_bank_diff, v.abs_bank_diff, p.count);
@@ -76,9 +76,9 @@ const processVizData = (data) => {
         p.count       -= 1;
         p.t            = rmWeightedMean(p.t, v.t, p.count);
         p.dist         = rmWeightedMean(p.dist, v.dist, p.count);
-        p.meter_per_hour        = rmWeightedMean(p.meter_per_hour, v.meter_per_hour, p.count);
-        p.quad_speed  -= Math.pow(v.meter_per_hour, 2);
-        p.speed_std    = (p.count > 1 ? Math.sqrt(Math.pow(p.meter_per_hour, 2) - (p.quad_speed / p.count)) : 0);
+        p.kmh        = rmWeightedMean(p.kmh, v.kmh, p.count);
+        p.quad_speed  -= Math.pow(v.kmh, 2);
+        p.speed_std    = (p.count > 1 ? Math.sqrt(Math.pow(p.kmh, 2) - (p.quad_speed / p.count)) : 0);
         p.dist_km          = rmWeightedMean(p.dist_km, v.dist_km, p.count);
         p.bearing         = rmWeightedMean(p.bearing, v.bearing, p.count);
         p.abs_bank_diff    = rmWeightedMean(p.abs_bank_diff, v.abs_bank_diff, p.count);
@@ -92,7 +92,7 @@ const processVizData = (data) => {
           count: 0,
           t: 0,
           dist: 0,
-          meter_per_hour: 0,
+          kmh: 0,
           quad_speed: 0,
           speed_std: 0,
           dist_km: 0,
@@ -124,7 +124,7 @@ groups.bearing = dimensions.bearing.group();
 
 dimensions.speed = ndx.dimension(
   function (d) {
-    return Math.floor(d.meter_per_hour / 10) * 10;
+    return Math.floor(d.kmh / 10) * 10;
   }
 );
 
