@@ -124,7 +124,9 @@ groups.bearing = dimensions.bearing.group();
 
 dimensions.speed = ndx.dimension(
   function (d) {
-    return Math.floor(d.kmh / 10) * 10;
+    // return Math.floor(d.kmh / 10) * 10;
+    if (d.kmh>9999999) return 9999
+    return d.kmh.toFixed(3);
   }
 );
 

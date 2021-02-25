@@ -369,6 +369,9 @@ function complete_csv_processing(){
 
 var dataTables = {};
 function json_2_dataTable(result, div_id){
+  if (!typeof result == 'object') return;
+  console.log('plotting table ', result);
+  
   var t_columns = Object.keys(result.data[0]).map(function(x){ return { title: x}; })
   var rows = result.data.map(function(row){ 
             return t_columns.map(function(col){
