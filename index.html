@@ -469,7 +469,7 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
         var t_row = {"user":unique_uid[i], 
             "start_point":row0.coord.geometry.coordinates, 
             "end_point":row1.coord.geometry.coordinates, 
-            "dist_meter":dist,
+            "dist_km":dist,
             "start_time":row0.timestamp,"time_Delta(hour)":time_delta,
             "meter_per_hour":meter_per_hour, "bearing":bearing};
         //var t_row = [row0.coord, row1.coord,dist,time_delta,meter_per_hour,bearing];
@@ -562,11 +562,11 @@ var bcDriver = dc.barChart("#user")
                     let currentDim = allDim.top(Infinity)
                     t_bearing= currentDim.map((x)=> {return x.bearing})
                     t_speeds = currentDim.map((x)=> {return x.meter_per_hour})
-                    t_dist = currentDim.map((x)=> {return x.dist_meter})
+                    t_dist = currentDim.map((x)=> {return x.dist_km})
 
                     filters = {'bearing':[_.min(t_bearing),_.max(t_bearing)],
                               'meter_per_hour':[_.min(t_speeds),_.max(t_speeds)],
-                              'dist_meter':[_.min(t_dist),_.max(t_dist)],
+                              'dist_km':[_.min(t_dist),_.max(t_dist)],
                             }
                     console.log('filterTrack( currentDim, filters) :', currentDim, filters)
                     filterTrack( currentDim, filters)
@@ -613,7 +613,7 @@ function compareTimeStamp( a, b ) {
 function filterTrack( data, filters){
   // filters = {'bearing':[_.min(t_bearing),_.max(t_bearing)],
   //                             'meter_per_hour':[_.min(t_speeds),_.max(t_speeds)],
-  //                             'dist_meter':[_.min(t_dist),_.max(t_dist)],
+  //                             'dist_km':[_.min(t_dist),_.max(t_dist)],
   //                           }
   filtered_tracks.clearLayers();
   
@@ -666,7 +666,7 @@ function filterTrack( data, filters){
         var t_row = {"user":user, 
             "start_point":row0.coord.geometry.coordinates, 
             "end_point":row1.coord.geometry.coordinates, 
-            "dist_meter":dist,
+            "dist_km":dist,
             "start_time":row0.timestamp,"time_Delta(hour)":time_delta,
             "meter_per_hour":meter_per_hour, "bearing":bearing};
         //////////

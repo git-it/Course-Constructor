@@ -62,7 +62,7 @@ const processVizData = (data) => {
         p.meter_per_hour        = addWeightedMean(p.meter_per_hour, v.meter_per_hour, p.count);
         p.quad_speed  += Math.pow(v.meter_per_hour, 2);
         p.speed_std    = (p.count > 1 ? Math.sqrt(Math.pow(p.meter_per_hour, 2) - (p.quad_speed / p.count)) : 0);
-        p.dist_meter          = addWeightedMean(p.dist_meter, v.dist_meter, p.count);
+        p.dist_km          = addWeightedMean(p.dist_km, v.dist_km, p.count);
         p.bearing         = addWeightedMean(p.bearing, v.bearing, p.count);
         p.abs_bank_diff    = addWeightedMean(p.abs_bank_diff, v.abs_bank_diff, p.count);
         p.radius       = addWeightedMean(p.radius, v.radius, p.count);
@@ -79,7 +79,7 @@ const processVizData = (data) => {
         p.meter_per_hour        = rmWeightedMean(p.meter_per_hour, v.meter_per_hour, p.count);
         p.quad_speed  -= Math.pow(v.meter_per_hour, 2);
         p.speed_std    = (p.count > 1 ? Math.sqrt(Math.pow(p.meter_per_hour, 2) - (p.quad_speed / p.count)) : 0);
-        p.dist_meter          = rmWeightedMean(p.dist_meter, v.dist_meter, p.count);
+        p.dist_km          = rmWeightedMean(p.dist_km, v.dist_km, p.count);
         p.bearing         = rmWeightedMean(p.bearing, v.bearing, p.count);
         p.abs_bank_diff    = rmWeightedMean(p.abs_bank_diff, v.abs_bank_diff, p.count);
         p.radius       = rmWeightedMean(p.radius, v.radius, p.count);
@@ -95,7 +95,7 @@ const processVizData = (data) => {
           meter_per_hour: 0,
           quad_speed: 0,
           speed_std: 0,
-          dist_meter: 0,
+          dist_km: 0,
           bearing: 0,
           abs_bank_diff: 0,
           radius: 0,
@@ -124,7 +124,7 @@ groups.bearing = dimensions.bearing.group();
 
 dimensions.speed = ndx.dimension(
   function (d) {
-    return Math.floor(d.meter_per_hour * 3.6 / 10) * 10;
+    return Math.floor(d.meter_per_hour / 10) * 10;
   }
 );
 
@@ -145,18 +145,18 @@ dataRanges.speed = d3.extent(
   }
 );
 
-dimensions.dist_meter = ndx.dimension(
+dimensions.dist_km = ndx.dimension(
   function (d) {
-    return Math.floor(d.dist_meter /10) * 10;
+    return Math.floor(d.dist_km);
   }
 );
 
-groups.dist_meter = dimensions.dist_meter.group();
+groups.dist_km = dimensions.dist_km.group();
 
-dataRanges.dist_meter = d3.extent(
+dataRanges.dist_km = d3.extent(
   groups.data.all(),
   function (d) {
-    return d.value.dist_meter;
+    return d.value.dist_km;
   }
 );
 
@@ -244,7 +244,7 @@ bcSpeed
         )
       )
   )
-  .xAxisLabel('Speed (m/h)')
+  .xAxisLabel('Speed (km/h)')
   .yAxisLabel('segments')
   .elasticX(true)
   .elasticY(true);
@@ -253,14 +253,14 @@ bcSpeed
 
 
 bcAcc
-  .dimension(dimensions.dist_meter)
-  .group(groups.dist_meter)
+  .dimension(dimensions.dist_km)
+  .group(groups.dist_km)
   .margins(margins)
   .x(
     d3.scaleLinear()
       .domain(
         d3.extent(
-          groups.dist_meter.all(),
+          groups.dist_km.all(),
           function (d) {
             return d.key;
           }
@@ -271,14 +271,14 @@ bcAcc
     d3.scaleLinear()
       .domain(
         d3.extent(
-          groups.dist_meter.all(),
+          groups.dist_km.all(),
           function (d) {
             return d.value;
           }
         )
       )
   )
-  .xAxisLabel('segment length (meters)')
+  .xAxisLabel('distance (km)')
   .yAxisLabel('segments')
   .elasticX(true)
   .elasticY(true);
