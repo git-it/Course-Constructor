@@ -371,7 +371,7 @@ var dataTables = {};
 function json_2_dataTable(result, div_id){
   if (!typeof result == 'object') return;
   console.log('plotting table ', result);
-  
+
   var t_columns = Object.keys(result.data[0]).map(function(x){ return { title: x}; })
   var rows = result.data.map(function(row){ 
             return t_columns.map(function(col){
@@ -719,7 +719,7 @@ function filterTrack( data, filters){
      }
   })
 
-  map.setMaxBounds(filtered_tracks.getBounds())
+  map.fitBounds(filtered_tracks.getBounds())
   json_2_dataTable({'data':computed_rows}, 'computed_table_in');
   //update charts ??to much overhead FIXME
   // processVizData(computed_rows);
