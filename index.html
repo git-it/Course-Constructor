@@ -197,17 +197,10 @@
   <script>
     var {KalmanFilter} = kalmanFilter;
 
-    const kFilter = new KalmanFilter({
-      observation: {
-        sensorDimension: 3, //three dimensional
-        name: 'sensor'
-      },
-      dynamic: {
-        name: 'constant-speed',// constant-acceleration
-        timeStep: 0.1,
-        covariance: [3, 3, 3, 4, 4, 4]// equivalent to diag([3, 3, 3, 4, 4, 4])
-      }
-    });
+    const  kFilter = new KalmanFilter({
+			observation: 2,
+			dynamic: 'constant-speed'
+		});
     
     // var raw_tracks = L.geoJSON();
     var raw_tracks = new L.LayerGroup();
@@ -454,13 +447,52 @@ function csv_to_lineStrings(data_in, userColumn, timeColumn,
   // sort data by time
   for(var i=0; i<unique_uid.length; i+=1) {
     let timeSeries = [];
+
+    // online kalman filter
+    let previousCorrected = null;
+    const results = [];
+
     let userData = organized_data[unique_uid[i]];
     userData.sort( compareTimeStamp );
     user_2_speeds[unique_uid[i]] = [];
     user_2_dist[unique_uid[i]] = [];
+    //
     /////////////////////////////////////////
     let row0 = null;
     userData.forEach((row1)=>{
+      ///////////
+      // let observation = [ row1.coord.geometry.coordinates[0].toFixed(7),
+      //                   row1.coord.geometry.coordinates[1].toFixed(7),
+      //                   ]
+      let observation = row1.coord.geometry.coordinates
+      // obs.push(row1.timestamp)
+      // console.log(observation, row1.coord.geometry.coordinates)
+      try {
+        // const predicted = kFilter.predict({
+        //   previousCorrected
+        // });
+        // const correctedState = kFilter.correct({
+        //   predicted,
+        //   observation
+        // });
+        // results.push(correctedState.mean);
+        // // update the previousCorrected for next loop iteration
+        // previousCorrected = correctedState
+        //////////////////
+        previousCorrected = kFilter.filter({previousCorrected, observation});
+	      // results.push(previousCorrected.mean);
+        // console.log(previousCorrected.mean)
+        row1.coord.geometry.coordinates[0] = previousCorrected.mean[0][0];
+        row1.coord.geometry.coordinates[1] = previousCorrected.mean[1][0];
+
+      } catch (error) {
+        console.log('errrror', error);
+      }
+
+      results.push(previousCorrected.mean);
+      // row1.coord.geometry.coordinates = previousCorrected.mean.slice(0,2);
+      // row1.timestamp = previousCorrected.mean[2];
+
       // skip first row
       if (row0!=null){
         var dist = turf.distance(row0.coord, row1.coord);
